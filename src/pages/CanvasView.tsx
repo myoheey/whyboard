@@ -19,6 +19,7 @@ import { PinRenderer } from '@/components/PinRenderer';
 import { CanvasExporter } from '@/components/CanvasExporter';
 import CanvasBackgroundSelector from '@/components/CanvasBackgroundSelector';
 import LayerColorPicker from '@/components/LayerColorPicker';
+import { WhyChart } from '@/components/WhyChart';
 import ImageIcon from '@/components/ui/icons/ImageIcon';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -2027,20 +2028,17 @@ const CanvasView = () => {
               />
             )}
 
+            {/* Why-Why Chart 기본 배경 (배경이 흰색이거나 설정 안 된 경우) */}
             {(
               canvas.backgroundType === 'color' && canvas.backgroundColor === '#ffffff' && (
-                <div 
-                  className="w-full h-full flex items-center justify-center text-gray-300"
-                  style={{ 
+                <div
+                  className="absolute inset-0"
+                  style={{
                     width: `${canvasDimensions.width}px`,
                     height: `${canvasDimensions.height}px`
                   }}
                 >
-                  <div className="text-center">
-                    <Image className="w-16 h-16 mx-auto mb-4 opacity-20" />
-                    <p className="text-lg font-medium opacity-40">화이트 캔버스</p>
-                    <p className="text-sm opacity-30">핀을 추가하려면 클릭하세요</p>
-                  </div>
+                  <WhyChart width={canvasDimensions.width} height={canvasDimensions.height} />
                 </div>
               )
             )}

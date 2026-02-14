@@ -1,11 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  Circle, 
-  Square, 
-  Triangle, 
-  Star, 
-  Heart,
-} from 'lucide-react';
 import { PinHoverCard } from './PinHoverCard';
 
 interface PinTemplate {
@@ -54,33 +47,82 @@ interface PinRendererProps {
   containerHeight?: number;
 }
 
-const shapeComponents = {
-  circle: Circle,
-  square: Square,
-  triangle: Triangle,
-  star: Star,
-  heart: Heart,
-  custom: Circle, // fallback
+const pinSizeMap = {
+  small: { width: 20, height: 28 },
+  medium: { width: 28, height: 38 },
+  large: { width: 36, height: 48 },
 };
 
-const sizeMap = {
-  small: 16,
-  medium: 20,
-  large: 24,
-};
+// 핀 모양 SVG 컴포넌트 - 지도 핀(맵 마커) 형태
+const MapPinIcon: React.FC<{ color: string; width: number; height: number }> = ({ color, width, height }) => (
+  <svg
+    width={width}
+    height={height}
+    viewBox="0 0 24 32"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }}
+  >
+    {/* 핀 몸체 - 물방울/핀 모양 */}
+    <path
+      d="M12 0C5.373 0 0 5.373 0 12c0 8.4 12 20 12 20s12-11.6 12-20C24 5.373 18.627 0 12 0z"
+      fill={color}
+    />
+    {/* 핀 내부 원 (밝은 하이라이트) */}
+    <circle
+      cx="12"
+      cy="11"
+      r="5"
+      fill="white"
+      opacity="0.9"
+    />
+    {/* 핀 내부 작은 원 (색상 도트) */}
+    <circle
+      cx="12"
+      cy="11"
+      r="3"
+      fill={color}
+      opacity="0.8"
+    />
+    {/* 반사광 효과 */}
+    <ellipse
+      cx="8.5"
+      cy="7"
+      rx="2.5"
+      ry="1.5"
+      fill="white"
+      opacity="0.3"
+      transform="rotate(-20 8.5 7)"
+    />
+  </svg>
+);
 
-const customImageSizeMap = {
-  small: 24,
-  medium: 32,
-  large: 40,
+// 기존 하드코딩된 템플릿에서 색상만 추출하는 매핑
+const getHardcodedColor = (templateId: string): string | null => {
+  const colorMap: Record<string, string> = {
+    'default-circle': '#3b82f6',
+    'default-square': '#10b981',
+    'default-triangle': '#f59e0b',
+    'default-star': '#ef4444',
+    'custom-1': '#ff0000',
+    'custom-2': '#00ff00',
+    'custom-3': '#0000ff',
+    'custom-4': '#ffff00',
+    'custom-5': '#ff00ff',
+    'custom-6': '#00ffff',
+    'custom-7': '#ff8800',
+    'custom-8': '#88ff00',
+    'custom-9': '#0088ff',
+    'custom-10': '#ff0088',
+    'custom-11': '#88ff88',
+    'custom-12': '#8888ff',
+    'custom-13': '#ff8888',
+    'custom-14': '#88ffff',
+    'custom-15': '#ffff88',
+    'custom-16': '#ff88ff',
+  };
+  return colorMap[templateId] || null;
 };
-
-const defaultTemplates = [
-  { name: 'Circle', shape: 'circle', color: '#3b82f6', size: 'medium' },
-  { name: 'Square', shape: 'square', color: '#10b981', size: 'medium' },
-  { name: 'Triangle', shape: 'triangle', color: '#f59e0b', size: 'medium' },
-  { name: 'Star', shape: 'star', color: '#ef4444', size: 'medium' },
-];
 
 export const PinRenderer: React.FC<PinRendererProps> = ({
   pin,
@@ -93,45 +135,24 @@ export const PinRenderer: React.FC<PinRendererProps> = ({
   containerWidth = 1200,
   containerHeight = 800,
 }) => {
-  // 하드코딩된 템플릿 ID를 매핑하는 함수
-  const getHardcodedTemplate = (templateId: string): PinTemplate | null => {
-    const hardcodedTemplates: Record<string, PinTemplate> = {
-      'default-circle': { id: 'default-circle', name: '원형', shape: 'circle', color: '#3b82f6', size: 'medium', isDefault: true, isPublic: true },
-      'default-square': { id: 'default-square', name: '사각형', shape: 'square', color: '#10b981', size: 'medium', isDefault: true, isPublic: true },
-      'default-triangle': { id: 'default-triangle', name: '삼각형', shape: 'triangle', color: '#f59e0b', size: 'medium', isDefault: true, isPublic: true },
-      'default-star': { id: 'default-star', name: '별', shape: 'star', color: '#ef4444', size: 'medium', isDefault: true, isPublic: true },
-      'custom-1': { id: 'custom-1', name: '산', shape: 'custom', imageUrl: '/images/Custom1.png', color: '#ff0000', size: 'medium', isDefault: false, isPublic: true },
-      'custom-2': { id: 'custom-2', name: '절', shape: 'custom', imageUrl: '/images/Custom2.png', color: '#00ff00', size: 'medium', isDefault: false, isPublic: true },
-      'custom-3': { id: 'custom-3', name: '학도병추모비', shape: 'custom', imageUrl: '/images/Custom3.png', color: '#0000ff', size: 'medium', isDefault: false, isPublic: true },
-      'custom-4': { id: 'custom-4', name: '언양성당', shape: 'custom', imageUrl: '/images/Custom4.png', color: '#ffff00', size: 'medium', isDefault: false, isPublic: true },
-      'custom-5': { id: 'custom-5', name: '암각화', shape: 'custom', imageUrl: '/images/Custom5.png', color: '#ff00ff', size: 'medium', isDefault: false, isPublic: true },
-      'custom-6': { id: 'custom-6', name: '읍성', shape: 'custom', imageUrl: '/images/Custom6.png', color: '#00ffff', size: 'medium', isDefault: false, isPublic: true },
-      'custom-7': { id: 'custom-7', name: '간절곶', shape: 'custom', imageUrl: '/images/Custom7.png', color: '#ff8800', size: 'medium', isDefault: false, isPublic: true },
-      'custom-8': { id: 'custom-8', name: '공장', shape: 'custom', imageUrl: '/images/Custom8.png', color: '#88ff00', size: 'medium', isDefault: false, isPublic: true },
-      'custom-9': { id: 'custom-9', name: '학교', shape: 'custom', imageUrl: '/images/Custom9.png', color: '#0088ff', size: 'medium', isDefault: false, isPublic: true },
-      'custom-10': { id: 'custom-10', name: '한글교실', shape: 'custom', imageUrl: '/images/Custom10.png', color: '#ff0088', size: 'medium', isDefault: false, isPublic: true },
-      'custom-11': { id: 'custom-11', name: '작천정', shape: 'custom', imageUrl: '/images/Custom11.png', color: '#88ff88', size: 'medium', isDefault: false, isPublic: true },
-      'custom-12': { id: 'custom-12', name: '강', shape: 'custom', imageUrl: '/images/Custom12.png', color: '#8888ff', size: 'medium', isDefault: false, isPublic: true },
-      'custom-13': { id: 'custom-13', name: '바다', shape: 'custom', imageUrl: '/images/Custom13.png', color: '#ff8888', size: 'medium', isDefault: false, isPublic: true },
-      'custom-14': { id: 'custom-14', name: '소호분교', shape: 'custom', imageUrl: '/images/Custom14.png', color: '#88ffff', size: 'medium', isDefault: false, isPublic: true },
-      'custom-15': { id: 'custom-15', name: '산촌유학', shape: 'custom', imageUrl: '/images/Custom15.png', color: '#ffff88', size: 'medium', isDefault: false, isPublic: true },
-      'custom-16': { id: 'custom-16', name: '땡땡마을', shape: 'custom', imageUrl: '/images/Custom16.png', color: '#ff88ff', size: 'medium', isDefault: false, isPublic: true },
-    };
-    
-    return hardcodedTemplates[templateId] || null;
+  // 핀 색상 결정: layerColor > template color > hardcoded color > default
+  const resolveColor = (): string => {
+    if (layerColor) return layerColor;
+    if (template?.color) return template.color;
+    if (pin.templateId) {
+      const hardcoded = getHardcodedColor(pin.templateId);
+      if (hardcoded) return hardcoded;
+    }
+    return '#3b82f6'; // 기본 파란색
   };
 
-  // 템플릿 결정 로직 - 하드코딩된 템플릿과 실제 데이터베이스 템플릿을 모두 고려
-  let displayTemplate = template;
-  
-  // 하드코딩된 템플릿 ID에 대한 처리 (template이 없거나 유효하지 않은 경우)
-  if ((!displayTemplate || !displayTemplate.id) && pin.templateId) {
-    displayTemplate = getHardcodedTemplate(pin.templateId);
-  }
+  const pinColor = resolveColor();
+  const pinSize = pinSizeMap[template?.size || 'medium'];
+
   const [isDragging, setIsDragging] = useState(false);
-  const [currentPosition, setCurrentPosition] = useState({ 
-    x: isNaN(pin.x) ? 0 : pin.x, 
-    y: isNaN(pin.y) ? 0 : pin.y 
+  const [currentPosition, setCurrentPosition] = useState({
+    x: isNaN(pin.x) ? 0 : pin.x,
+    y: isNaN(pin.y) ? 0 : pin.y
   });
   const [isHovered, setIsHovered] = useState(false);
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
@@ -146,10 +167,10 @@ export const PinRenderer: React.FC<PinRendererProps> = ({
       const safeY = isNaN(pin.y) ? 0 : pin.y;
       const hasChanged = currentPosition.x !== safeX || currentPosition.y !== safeY;
       if (hasChanged) {
-        console.log(`🐛 Pin ${pin.id} position update:`, { 
-          originalX: pin.x, originalY: pin.y, 
-          safeX, safeY, 
-          templateId: pin.templateId 
+        console.log(`🐛 Pin ${pin.id} position update:`, {
+          originalX: pin.x, originalY: pin.y,
+          safeX, safeY,
+          templateId: pin.templateId
         });
         setCurrentPosition({ x: safeX, y: safeY });
       }
@@ -158,89 +179,73 @@ export const PinRenderer: React.FC<PinRendererProps> = ({
 
   if (!isVisible) return null;
 
-  // Use template if available, otherwise fall back to default
-  const finalTemplate = displayTemplate || {
-    shape: 'circle' as const,
-    color: layerColor || '#3b82f6',
-    size: 'medium' as const,
-  };
-
-  // If layerColor is provided, use it instead of template color
-  const finalColor = layerColor || finalTemplate.color;
-
   // Drag handlers
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!canEdit) return;
-    
+
     e.stopPropagation();
     e.preventDefault();
-    
+
     const startX = e.clientX;
     const startY = e.clientY;
     const startPinX = currentPosition.x;
     const startPinY = currentPosition.y;
-    
+
     let hasMoved = false;
-    
+
     const handleMouseMove = (moveEvent: MouseEvent) => {
       moveEvent.preventDefault();
-      
+
       const deltaX = moveEvent.clientX - startX;
       const deltaY = moveEvent.clientY - startY;
-      
+
       // Only start dragging if moved more than 3px
       if (!hasMoved && (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3)) {
         setIsDragging(true);
         hasMoved = true;
       }
-      
+
       if (hasMoved) {
-        // 🔧 FIXED CANVAS: 픽셀 이동을 상대 좌표로 변환
         const newAbsoluteX = startPinX + deltaX;
         const newAbsoluteY = startPinY + deltaY;
-        
-        // 고정 캔버스 경계 내로 제한
+
         const clampedX = Math.max(0, Math.min(containerWidth, newAbsoluteX));
         const clampedY = Math.max(0, Math.min(containerHeight, newAbsoluteY));
-        
-        // 상대 좌표로 변환 (고정 캔버스 크기 기준)
+
         const relativeX = clampedX / containerWidth;
         const relativeY = clampedY / containerHeight;
-        
-        // UI에는 절대 좌표로 표시
+
         const newPos = {
           x: clampedX,
           y: clampedY
         };
         setCurrentPosition(newPos);
-        
-        // 상대 좌표로 저장 준비
+
         finalPositionRef.current = { x: relativeX, y: relativeY };
       }
     };
-    
+
     const handleMouseUp = () => {
       if (hasMoved && onPositionChange) {
         onPositionChange(pin.id, finalPositionRef.current.x, finalPositionRef.current.y);
       }
-      
-      // Small delay to prevent click event after drag
+
       setTimeout(() => {
         setIsDragging(false);
       }, 10);
-      
+
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-    
+
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
   };
 
   const handleClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); // 이벤트 전파 방지
-    e.preventDefault(); // 기본 동작 방지
-    
+    e.stopPropagation();
+    e.preventDefault();
+
     if (!isDragging) {
       onClick();
     }
@@ -250,19 +255,18 @@ export const PinRenderer: React.FC<PinRendererProps> = ({
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
     }
-    
-    // 즉시 rect를 저장해서 timeout에서 null이 되는 것을 방지
+
     const currentTarget = e.currentTarget as HTMLElement;
     const rect = currentTarget.getBoundingClientRect();
     const position = {
       x: rect.left + rect.width / 2,
       y: rect.top
     };
-    
+
     hoverTimeoutRef.current = setTimeout(() => {
       setHoverPosition(position);
       setIsHovered(true);
-    }, 500); // 다시 500ms로 복원
+    }, 500);
   };
 
   const handleMouseLeave = () => {
@@ -282,50 +286,7 @@ export const PinRenderer: React.FC<PinRendererProps> = ({
     };
   }, []);
 
-  // Custom image template
-  if (finalTemplate.shape === 'custom' && finalTemplate.imageUrl) {
-    const size = customImageSizeMap[finalTemplate.size];
-    return (
-      <div
-        ref={pinRef}
-        className={`absolute hover:scale-110 transition-transform duration-200 z-10 ${
-          canEdit ? (isDragging ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-pointer'
-        }`}
-        style={{
-          left: Math.round(isNaN(currentPosition.x) ? 0 : currentPosition.x) - size / 2,
-          top: Math.round(isNaN(currentPosition.y) ? 0 : currentPosition.y) - size / 2,
-          zIndex: isDragging ? 200 : 100,
-        }}
-        onMouseDown={handleMouseDown}
-        onClick={handleClick}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-      >
-        <img
-          src={finalTemplate.imageUrl}
-          alt={pin.title}
-          className="object-cover rounded-full border-2 border-white shadow-lg"
-          style={{ 
-            width: size,
-            height: size,
-            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
-          }}
-        />
-        
-        {/* Advanced Hover Card */}
-        <PinHoverCard
-          pin={pin}
-          isVisible={isHovered && !isDragging}
-          position={hoverPosition}
-        />
-      </div>
-    );
-  }
-
-  // Standard shape template
-  const ShapeComponent = shapeComponents[finalTemplate.shape];
-  const size = sizeMap[finalTemplate.size];
-  
+  // 모든 핀을 맵 핀 모양으로 통일 렌더링
   return (
     <div
       ref={pinRef}
@@ -333,8 +294,9 @@ export const PinRenderer: React.FC<PinRendererProps> = ({
         canEdit ? (isDragging ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-pointer'
       }`}
       style={{
-        left: Math.round(isNaN(currentPosition.x) ? 0 : currentPosition.x) - size / 2,
-        top: Math.round(isNaN(currentPosition.y) ? 0 : currentPosition.y) - size / 2,
+        // 핀의 뾰족한 끝이 정확한 좌표를 가리키도록 오프셋
+        left: Math.round(isNaN(currentPosition.x) ? 0 : currentPosition.x) - pinSize.width / 2,
+        top: Math.round(isNaN(currentPosition.y) ? 0 : currentPosition.y) - pinSize.height,
         zIndex: isDragging ? 200 : 100,
       }}
       onMouseDown={handleMouseDown}
@@ -342,17 +304,33 @@ export const PinRenderer: React.FC<PinRendererProps> = ({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      <ShapeComponent
-        size={size}
-        style={{ 
-          color: finalColor,
-          filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
-        }}
-        fill={finalTemplate.shape === 'circle' ? finalColor : 'none'}
-        stroke={finalColor}
-        strokeWidth={finalTemplate.shape === 'circle' ? 0 : 2}
+      <MapPinIcon
+        color={pinColor}
+        width={pinSize.width}
+        height={pinSize.height}
       />
-      
+
+      {/* 핀 제목 라벨 */}
+      {pin.title && (
+        <div
+          className="absolute text-center whitespace-nowrap pointer-events-none"
+          style={{
+            top: pinSize.height + 2,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            fontSize: '10px',
+            fontWeight: 600,
+            color: '#334155',
+            textShadow: '0 0 3px white, 0 0 3px white, 0 0 3px white',
+            maxWidth: '80px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {pin.title}
+        </div>
+      )}
+
       {/* Advanced Hover Card */}
       <PinHoverCard
         pin={pin}

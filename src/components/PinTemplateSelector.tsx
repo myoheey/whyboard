@@ -1,19 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Circle, 
-  Square, 
-  Triangle, 
-  Star, 
-  Heart, 
-  Plus,
+import {
   Palette,
-  Crown,
-  Upload
+  MapPin,
 } from 'lucide-react';
-import { CreatePinTemplateModal } from './CreatePinTemplateModal';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -37,45 +27,63 @@ interface PinTemplateSelectorProps {
   onClose: () => void;
 }
 
-const shapeIcons = {
-  circle: Circle,
-  square: Square,
-  triangle: Triangle,
-  star: Star,
-  heart: Heart,
-  custom: Plus,
-};
+// 핀 모양 미리보기 SVG
+const PinPreview: React.FC<{ color: string; size?: number }> = ({ color, size = 40 }) => (
+  <svg
+    width={size * 0.75}
+    height={size}
+    viewBox="0 0 24 32"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))' }}
+  >
+    <path
+      d="M12 0C5.373 0 0 5.373 0 12c0 8.4 12 20 12 20s12-11.6 12-20C24 5.373 18.627 0 12 0z"
+      fill={color}
+    />
+    <circle cx="12" cy="11" r="5" fill="white" opacity="0.9" />
+    <circle cx="12" cy="11" r="3" fill={color} opacity="0.8" />
+    <ellipse
+      cx="8.5"
+      cy="7"
+      rx="2.5"
+      ry="1.5"
+      fill="white"
+      opacity="0.3"
+      transform="rotate(-20 8.5 7)"
+    />
+  </svg>
+);
 
-const sizeMap = {
-  small: 16,
-  medium: 20,
-  large: 24,
-};
-
-const defaultTemplates = [
-  { id: 'default-circle', name: '원형', shape: 'circle', color: '#3b82f6', size: 'medium', isDefault: true, isPublic: true },
-  { id: 'default-square', name: '사각형', shape: 'square', color: '#10b981', size: 'medium', isDefault: true, isPublic: true },
-  { id: 'default-triangle', name: '삼각형', shape: 'triangle', color: '#f59e0b', size: 'medium', isDefault: true, isPublic: true },
-  { id: 'default-star', name: '별', shape: 'star', color: '#ef4444', size: 'medium', isDefault: true, isPublic: true },
+// 사전 정의된 색상 팔레트
+const colorPalette = [
+  { id: 'pin-red', name: '빨강', color: '#ef4444' },
+  { id: 'pin-orange', name: '주황', color: '#f97316' },
+  { id: 'pin-amber', name: '호박', color: '#f59e0b' },
+  { id: 'pin-yellow', name: '노랑', color: '#eab308' },
+  { id: 'pin-lime', name: '라임', color: '#84cc16' },
+  { id: 'pin-green', name: '초록', color: '#22c55e' },
+  { id: 'pin-emerald', name: '에메랄드', color: '#10b981' },
+  { id: 'pin-teal', name: '청록', color: '#14b8a6' },
+  { id: 'pin-cyan', name: '시안', color: '#06b6d4' },
+  { id: 'pin-sky', name: '하늘', color: '#0ea5e9' },
+  { id: 'pin-blue', name: '파랑', color: '#3b82f6' },
+  { id: 'pin-indigo', name: '남색', color: '#6366f1' },
+  { id: 'pin-violet', name: '보라', color: '#8b5cf6' },
+  { id: 'pin-purple', name: '자주', color: '#a855f7' },
+  { id: 'pin-fuchsia', name: '자홍', color: '#d946ef' },
+  { id: 'pin-pink', name: '분홍', color: '#ec4899' },
+  { id: 'pin-rose', name: '장미', color: '#f43f5e' },
+  { id: 'pin-slate', name: '슬레이트', color: '#64748b' },
+  { id: 'pin-gray', name: '회색', color: '#6b7280' },
+  { id: 'pin-black', name: '검정', color: '#1e293b' },
 ];
 
-const customTemplates = [
-  { id: 'custom-1', name: '산', shape: 'custom', imageUrl: '/images/Custom1.png', color: '#ff0000', size: 'large', isDefault: false, isPublic: true },
-  { id: 'custom-2', name: '절', shape: 'custom', imageUrl: '/images/Custom2.png', color: '#00ff00', size: 'large', isDefault: false, isPublic: true },
-  { id: 'custom-3', name: '학도병추모비', shape: 'custom', imageUrl: '/images/Custom3.png', color: '#0000ff', size: 'large', isDefault: false, isPublic: true },
-  { id: 'custom-4', name: '언양성당', shape: 'custom', imageUrl: '/images/Custom4.png', color: '#ffff00', size: 'large', isDefault: false, isPublic: true },
-  { id: 'custom-5', name: '암각화', shape: 'custom', imageUrl: '/images/Custom5.png', color: '#ff00ff', size: 'large', isDefault: false, isPublic: true },
-  { id: 'custom-6', name: '읍성', shape: 'custom', imageUrl: '/images/Custom6.png', color: '#00ffff', size: 'large', isDefault: false, isPublic: true },
-  { id: 'custom-7', name: '간절곶', shape: 'custom', imageUrl: '/images/Custom7.png', color: '#ff8800', size: 'large', isDefault: false, isPublic: true },
-  { id: 'custom-8', name: '공장', shape: 'custom', imageUrl: '/images/Custom8.png', color: '#88ff00', size: 'large', isDefault: false, isPublic: true },
-  { id: 'custom-9', name: '학교', shape: 'custom', imageUrl: '/images/Custom9.png', color: '#0088ff', size: 'large', isDefault: false, isPublic: true },
-  { id: 'custom-10', name: '한글교실', shape: 'custom', imageUrl: '/images/Custom10.png', color: '#ff0088', size: 'large', isDefault: false, isPublic: true },
-  { id: 'custom-11', name: '작천정', shape: 'custom', imageUrl: '/images/Custom11.png', color: '#88ff88', size: 'large', isDefault: false, isPublic: true },
-  { id: 'custom-12', name: '강', shape: 'custom', imageUrl: '/images/Custom12.png', color: '#8888ff', size: 'large', isDefault: false, isPublic: true },
-  { id: 'custom-13', name: '바다', shape: 'custom', imageUrl: '/images/Custom13.png', color: '#ff8888', size: 'large', isDefault: false, isPublic: true },
-  { id: 'custom-14', name: '소호분교', shape: 'custom', imageUrl: '/images/Custom14.png', color: '#88ffff', size: 'large', isDefault: false, isPublic: true },
-  { id: 'custom-15', name: '산촌유학', shape: 'custom', imageUrl: '/images/Custom15.png', color: '#ffff88', size: 'large', isDefault: false, isPublic: true },
-  { id: 'custom-16', name: '땡땡마을', shape: 'custom', imageUrl: '/images/Custom16.png', color: '#ff88ff', size: 'large', isDefault: false, isPublic: true },
+// 핀 크기 옵션
+const sizeOptions = [
+  { id: 'small', name: '소', label: 'S' },
+  { id: 'medium', name: '중', label: 'M' },
+  { id: 'large', name: '대', label: 'L' },
 ];
 
 export const PinTemplateSelector: React.FC<PinTemplateSelectorProps> = ({
@@ -83,109 +91,44 @@ export const PinTemplateSelector: React.FC<PinTemplateSelectorProps> = ({
   onTemplateSelect,
   onClose,
 }) => {
-  const [templates, setTemplates] = useState<PinTemplate[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [selectedColor, setSelectedColor] = useState(selectedTemplate?.color || '#3b82f6');
+  const [selectedSize, setSelectedSize] = useState<'small' | 'medium' | 'large'>(selectedTemplate?.size || 'medium');
+  const [customColor, setCustomColor] = useState(selectedTemplate?.color || '#3b82f6');
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchTemplates();
-  }, []);
-
-  const fetchTemplates = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('pin_templates')
-        .select('*')
-        .order('is_default', { ascending: false })
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-
-      const formattedTemplates: PinTemplate[] = data.map(template => ({
-        id: template.id,
-        name: template.name,
-        description: template.description,
-        shape: template.shape as PinTemplate['shape'],
-        color: template.color,
-        size: template.size as PinTemplate['size'],
-        icon: template.icon,
-        style: template.style,
-        imageUrl: template.image_url,
-        isDefault: template.is_default,
-        isPublic: template.is_public,
-      }));
-
-      setTemplates(formattedTemplates);
-    } catch (error) {
-      console.error('Error fetching pin templates:', error);
-      toast({
-        title: "오류",
-        description: "핀 템플릿을 불러올 수 없습니다.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  const handleColorSelect = (color: string) => {
+    setSelectedColor(color);
+    setCustomColor(color);
   };
 
-  const renderTemplatePreview = (template: PinTemplate) => {
-    if (template.shape === 'custom' && template.imageUrl) {
-      return (
-        <div className="flex items-center justify-center w-12 h-12 rounded-lg border-2 bg-background overflow-hidden">
-          <img
-            src={template.imageUrl}
-            alt={template.name}
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              console.error('Failed to load custom template image:', template.imageUrl);
-              e.currentTarget.style.display = 'none';
-            }}
-            onLoad={() => {
-              console.log('Successfully loaded custom template image:', template.imageUrl);
-            }}
-          />
-        </div>
-      );
-    }
-
-    const IconComponent = shapeIcons[template.shape] || Circle;
-    const size = sizeMap[template.size];
-    
-    return (
-      <div 
-        className="flex items-center justify-center w-12 h-12 rounded-lg border-2 bg-background"
-        style={{ borderColor: template.color }}
-      >
-        <IconComponent 
-          size={size} 
-          style={{ color: template.color }}
-          fill={template.shape === 'circle' ? template.color : 'none'}
-        />
-      </div>
-    );
+  const handleCustomColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const color = e.target.value;
+    setCustomColor(color);
+    setSelectedColor(color);
   };
 
-  if (isLoading) {
-    return (
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6">
-          <div className="text-center">
-            <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-            <p className="text-muted-foreground">템플릿을 불러오는 중...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const handleConfirm = () => {
+    const template: PinTemplate = {
+      id: `pin-color-${selectedColor.replace('#', '')}`,
+      name: `핀 (${selectedColor})`,
+      shape: 'circle',
+      color: selectedColor,
+      size: selectedSize,
+      isDefault: true,
+      isPublic: true,
+    };
+    onTemplateSelect(template);
+    onClose();
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden">
+        {/* 헤더 */}
         <div className="flex items-center justify-between p-6 border-b">
           <div className="flex items-center space-x-3">
-            <Palette className="w-6 h-6 text-primary" />
-            <h2 className="text-xl font-semibold">핀 템플릿 선택</h2>
+            <MapPin className="w-6 h-6 text-primary" />
+            <h2 className="text-xl font-semibold">핀 색상 선택</h2>
           </div>
           <Button
             variant="ghost"
@@ -197,63 +140,80 @@ export const PinTemplateSelector: React.FC<PinTemplateSelectorProps> = ({
           </Button>
         </div>
 
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium">템플릿 선택</h3>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsCreateModalOpen(true)}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              새 템플릿
-            </Button>
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
+          {/* 핀 미리보기 */}
+          <div className="flex justify-center mb-6">
+            <div className="flex flex-col items-center gap-2 p-4 bg-gray-50 rounded-xl">
+              <PinPreview color={selectedColor} size={64} />
+              <span className="text-sm font-medium text-gray-600">미리보기</span>
+            </div>
           </div>
-          
-          <div className="grid grid-cols-5 gap-4">
-            {defaultTemplates.concat(customTemplates).map((template, index) => {
-              console.log('Rendering template:', template.name, template.shape, (template as any).imageUrl);
-              return (
-              <Card
-                key={index}
-                className={`cursor-pointer transition-all hover:shadow-lg border-2 ${
-                  selectedTemplate?.name === template.name ? 'border-primary' : 'border-border'
-                }`}
-                onClick={() => onTemplateSelect(template as PinTemplate)}
-              >
-                <CardContent className="p-3 text-center">
-                  <div className="mb-2 flex justify-center">
-                    {renderTemplatePreview(template as PinTemplate)}
-                  </div>
-                  <p className="text-xs font-medium truncate">{template.name}</p>
-                </CardContent>
-              </Card>
-              );
-            })}
+
+          {/* 색상 팔레트 */}
+          <div className="mb-6">
+            <h3 className="text-sm font-medium text-gray-700 mb-3">색상 선택</h3>
+            <div className="grid grid-cols-10 gap-2">
+              {colorPalette.map((item) => (
+                <button
+                  key={item.id}
+                  className={`w-8 h-8 rounded-full border-2 hover:scale-110 transition-all ${
+                    selectedColor === item.color
+                      ? 'border-gray-800 ring-2 ring-offset-1 ring-gray-400'
+                      : 'border-gray-200'
+                  }`}
+                  style={{ backgroundColor: item.color }}
+                  onClick={() => handleColorSelect(item.color)}
+                  title={item.name}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* 커스텀 색상 */}
+          <div className="mb-6">
+            <h3 className="text-sm font-medium text-gray-700 mb-3">사용자 정의 색상</h3>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={customColor}
+                onChange={handleCustomColorChange}
+                className="w-10 h-10 rounded-lg cursor-pointer border border-gray-300"
+              />
+              <span className="text-sm text-gray-500 font-mono">{customColor}</span>
+            </div>
+          </div>
+
+          {/* 크기 선택 */}
+          <div>
+            <h3 className="text-sm font-medium text-gray-700 mb-3">핀 크기</h3>
+            <div className="flex gap-3">
+              {sizeOptions.map((option) => (
+                <button
+                  key={option.id}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all ${
+                    selectedSize === option.id
+                      ? 'border-primary bg-primary/5 text-primary'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                  onClick={() => setSelectedSize(option.id as 'small' | 'medium' | 'large')}
+                >
+                  <PinPreview color={selectedColor} size={option.id === 'small' ? 20 : option.id === 'medium' ? 28 : 36} />
+                  <span className="text-sm font-medium">{option.name} ({option.label})</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
+        {/* 하단 버튼 */}
         <div className="flex justify-end space-x-3 p-6 border-t bg-gray-50">
           <Button variant="outline" onClick={onClose}>
             취소
           </Button>
-          <Button 
-            onClick={onClose}
-            disabled={!selectedTemplate}
-          >
+          <Button onClick={handleConfirm}>
             선택 완료
           </Button>
         </div>
-
-        {/* Create Template Modal */}
-        <CreatePinTemplateModal
-          isOpen={isCreateModalOpen}
-          onClose={() => setIsCreateModalOpen(false)}
-          onSubmit={(newTemplate) => {
-            setTemplates(prev => [...prev, newTemplate]);
-            fetchTemplates(); // Refresh list
-          }}
-        />
       </div>
     </div>
   );
